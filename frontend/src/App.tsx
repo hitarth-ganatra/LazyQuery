@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import axios from 'axios'
 import {
@@ -76,6 +76,8 @@ function App() {
   const [tableLimit, setTableLimit] = useState(100)
   const [filterColumn, setFilterColumn] = useState('')
   const [filterValue, setFilterValue] = useState('')
+  const tableColumnsKey = useMemo(() => JSON.stringify(tableResult?.columns ?? []), [tableResult])
+  const resultColumnsKey = useMemo(() => JSON.stringify(result?.columns ?? []), [result])
 
   const hasRows = (result?.rows?.length ?? 0) > 0
   const metricValue = useMemo(() => {
@@ -92,6 +94,7 @@ function App() {
 
   const [chartXKey, setChartXKey] = useState('')
   const [chartYKey, setChartYKey] = useState('')
+  const clampLimit = (value: string) => Math.min(Math.max(Number(value) || 1, 1), 1000)
 
   useEffect(() => {
     if (!result) {
@@ -105,36 +108,39 @@ function App() {
     setChartYKey(defaultY)
   }, [result, numericColumns])
 
-  const fetchTableRows = async (tableName: string, options?: { forceClearFilter?: boolean }) => {
-    const currentFilterColumn = options?.forceClearFilter ? '' : filterColumn
-    const currentFilterValue = options?.forceClearFilter ? '' : filterValue
+  const fetchTableRows = useCallback(
+    async (tableName: string, options: { filterColumn?: string; filterValue?: string; limit?: number } = {}) => {
+      const currentFilterColumn = options.filterColumn ?? ''
+      const currentFilterValue = options.filterValue ?? ''
+      const currentLimit = options.limit ?? 100
+      setActiveTable(tableName)
+      setTableLoading(true)
+      setTableError('')
 
-    setActiveTable(tableName)
-    setTableLoading(true)
-    setTableError('')
+      try {
+        const params: Record<string, string | number> = {
+          limit: currentLimit,
+          offset: 0,
+        }
+        if (currentFilterColumn && currentFilterValue) {
+          params.filter_column = currentFilterColumn
+          params.filter_value = currentFilterValue
+        }
 
-    try {
-      const params: Record<string, string | number> = {
-        limit: tableLimit,
-        offset: 0,
+        const response = await api.get<TableRowsResponse>(`/tables/${tableName}/rows`, { params })
+        setTableResult(response.data)
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          setTableError(err.response?.data?.detail || err.message)
+        } else {
+          setTableError('Unknown error while loading table data')
+        }
+      } finally {
+        setTableLoading(false)
       }
-      if (currentFilterColumn && currentFilterValue) {
-        params.filter_column = currentFilterColumn
-        params.filter_value = currentFilterValue
-      }
-
-      const response = await api.get<TableRowsResponse>(`/tables/${tableName}/rows`, { params })
-      setTableResult(response.data)
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setTableError(err.response?.data?.detail || err.message)
-      } else {
-        setTableError('Unknown error while loading table data')
-      }
-    } finally {
-      setTableLoading(false)
-    }
-  }
+    },
+    [],
+  )
 
   useEffect(() => {
     const loadTables = async () => {
@@ -145,7 +151,7 @@ function App() {
           const firstTable = response.data.tables[0].name
           setActiveTable(firstTable)
           setFilterColumn(response.data.tables[0].columns[0] ?? '')
-          await fetchTableRows(firstTable, { forceClearFilter: true })
+          await fetchTableRows(firstTable, { limit: 100 })
         }
       } catch (err) {
         if (axios.isAxiosError(err)) {
@@ -157,8 +163,7 @@ function App() {
     }
 
     void loadTables()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchTableRows])
 
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault()
@@ -208,7 +213,7 @@ function App() {
                 min={1}
                 max={1000}
                 value={limit}
-                onChange={(event) => setLimit(Number(event.target.value) || 1)}
+                onChange={(event) => setLimit(clampLimit(event.target.value))}
               />
             </label>
             <button type="submit" disabled={loading}>
@@ -243,7 +248,7 @@ function App() {
               onClick={() => {
                 setFilterColumn(table.columns[0] ?? '')
                 setFilterValue('')
-                void fetchTableRows(table.name, { forceClearFilter: true })
+                void fetchTableRows(table.name, { limit: tableLimit })
               }}
             >
               {table.name}
@@ -282,10 +287,21 @@ function App() {
               min={1}
               max={1000}
               value={tableLimit}
-              onChange={(event) => setTableLimit(Number(event.target.value) || 1)}
+              onChange={(event) => setTableLimit(clampLimit(event.target.value))}
             />
           </label>
-          <button type="button" onClick={() => activeTable && void fetchTableRows(activeTable)}>
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTable) {
+                void fetchTableRows(activeTable, {
+                  filterColumn: filterColumn || undefined,
+                  filterValue: filterValue || undefined,
+                  limit: tableLimit,
+                })
+              }
+            }}
+          >
             Apply
           </button>
           <button
@@ -293,7 +309,7 @@ function App() {
             onClick={() => {
               setFilterValue('')
               if (activeTable) {
-                void fetchTableRows(activeTable, { forceClearFilter: true })
+                void fetchTableRows(activeTable, { limit: tableLimit })
               }
             }}
           >
@@ -320,13 +336,16 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tableResult.rows.map((row, rowIndex) => (
-                    <tr key={`${rowIndex}-${tableResult.columns.join('-')}`}>
+                  {tableResult.rows.map((row, rowIndex) => {
+                    const rowPrimary = row.id ?? row[tableResult.columns[0] ?? ''] ?? rowIndex
+                    return (
+                      <tr key={`${String(rowPrimary)}-${tableColumnsKey}`}>
                       {tableResult.columns.map((column) => (
                         <td key={`${rowIndex}-${column}`}>{String(row[column] ?? '')}</td>
                       ))}
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -447,13 +466,16 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.rows.map((row, rowIndex) => (
-                    <tr key={`${rowIndex}-${result.columns.join('-')}`}>
+                  {result.rows.map((row, rowIndex) => {
+                    const rowPrimary = row.id ?? row[result.columns[0] ?? ''] ?? rowIndex
+                    return (
+                      <tr key={`${String(rowPrimary)}-${resultColumnsKey}`}>
                       {result.columns.map((column) => (
                         <td key={`${rowIndex}-${column}`}>{String(row[column] ?? '')}</td>
                       ))}
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             )}

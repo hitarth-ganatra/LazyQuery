@@ -96,4 +96,4 @@ def test_query_endpoint_rejects_invalid_sql(monkeypatch: pytest.MonkeyPatch) -> 
         response = client.post("/api/query", json={"prompt": "Delete data", "limit": 25, "offset": 0})
 
     assert response.status_code == 400
-    assert "Only SELECT statements are allowed" in response.json()["detail"]
+    assert "Only SELECT statements are permitted" in response.json()["detail"]

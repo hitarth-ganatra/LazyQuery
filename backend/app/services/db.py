@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import asyncpg
 
 IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+TEXT_LIKE_TYPES = {"varchar", "char", "character", "text", "citext", "name", "character varying"}
 
 
 @dataclass
@@ -78,8 +79,8 @@ class DatabaseService:
         if table_columns is None:
             raise ValueError(f"Unknown table: {table_name}")
 
-        allowed_columns = {column.column_name for column in table_columns}
-        if filter_column and filter_column not in allowed_columns:
+        column_types = {column.column_name: column.data_type for column in table_columns}
+        if filter_column and filter_column not in column_types:
             raise ValueError(f"Unknown filter column: {filter_column}")
 
         quoted_table = self._quote_identifier(table_name)
@@ -88,7 +89,10 @@ class DatabaseService:
 
         if filter_column and filter_value:
             quoted_column = self._quote_identifier(filter_column)
-            where_clause = f" WHERE {quoted_column}::text ILIKE $1"
+            filter_type = column_types.get(filter_column, "").lower()
+            is_text_like = filter_type in TEXT_LIKE_TYPES
+            filter_expression = quoted_column if is_text_like else f"{quoted_column}::text"
+            where_clause = f" WHERE {filter_expression} ILIKE $1"
             params.append(f"%{filter_value}%")
 
         limit_param = len(params) + 1

@@ -53,7 +53,7 @@ async def get_table_rows(
     filter_value: str | None = Query(default=None),
     db: DatabaseService = Depends(get_db_service),
 ) -> TableRowsResponse:
-    if (filter_column and not filter_value) or (filter_value and not filter_column):
+    if bool(filter_column) != bool(filter_value):
         raise HTTPException(status_code=400, detail="Both filter_column and filter_value are required together")
 
     try:

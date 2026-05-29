@@ -21,7 +21,7 @@ class GroqClient:
             raise RuntimeError("Groq API key is not configured")
 
         url = f"{self.base_url}/chat/completions"
-        headers = {"Authorization": f"******"}
+        headers = {"Authorization": "Bearer " + self.api_key}
         payload = {
             "model": self.model,
             "temperature": 0,

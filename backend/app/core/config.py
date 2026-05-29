@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
 
-    database_url: str = "******localhost:5432/lazyquery"
+    database_url: str = "postgresql://localhost/lazyquery"
     query_timeout_seconds: int = 12
     max_rows_per_query: int = 200
 

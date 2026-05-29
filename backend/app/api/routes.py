@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.models import QueryRequest, QueryResponse
+from app.models import QueryRequest, QueryResponse, TableInfo, TableRowsResponse, TablesResponse
 from app.services.analytics import recommend_chart
 from app.services.db import DatabaseService
 from app.services.nl2sql import NlToSqlService
@@ -35,6 +35,49 @@ def get_sql_validator() -> SqlSafetyValidator:
 @router.get("/health")
 async def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/tables", response_model=TablesResponse)
+async def list_tables(db: DatabaseService = Depends(get_db_service)) -> TablesResponse:
+    schema = await db.fetch_schema()
+    tables = [TableInfo(name=table_name, columns=[col.column_name for col in columns]) for table_name, columns in schema.items()]
+    return TablesResponse(tables=tables)
+
+
+@router.get("/tables/{table_name}/rows", response_model=TableRowsResponse)
+async def get_table_rows(
+    table_name: str,
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    filter_column: str | None = Query(default=None),
+    filter_value: str | None = Query(default=None),
+    db: DatabaseService = Depends(get_db_service),
+) -> TableRowsResponse:
+    if (filter_column and not filter_value) or (filter_value and not filter_column):
+        raise HTTPException(status_code=400, detail="Both filter_column and filter_value are required together")
+
+    try:
+        columns, rows, total_rows = await db.fetch_table_rows(
+            table_name,
+            limit=limit,
+            offset=offset,
+            filter_column=filter_column,
+            filter_value=filter_value,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Table query timed out") from exc
+    except asyncpg.PostgresError as exc:
+        raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
+
+    return TableRowsResponse(
+        table=table_name,
+        columns=columns,
+        rows=rows,
+        row_count=len(rows),
+        total_rows=total_rows,
+    )
 
 
 @router.post("/query", response_model=QueryResponse)

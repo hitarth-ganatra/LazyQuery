@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "Show top 5 customers by total order value",
+      "expected_sql": "SELECT customer_id, SUM(total_amount) AS total_value FROM orders GROUP BY customer_id ORDER BY total_value DESC LIMIT 5",
+      "predicted_sql": "SELECT customer_id, SUM(total_amount) AS total_value FROM orders GROUP BY customer_id ORDER BY total_value DESC LIMIT 5"
+    },
+    {
+      "prompt": "What is daily revenue for the last 30 days?",
+      "expected_sql": "SELECT DATE(created_at) AS day, SUM(total_amount) AS revenue FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '30 days' GROUP BY DATE(created_at) ORDER BY day",
+      "predicted_sql": "SELECT DATE(created_at) AS day, SUM(total_amount) AS revenue FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '30 days' GROUP BY DATE(created_at) ORDER BY day"
+    },
+    {
+      "prompt": "List all products",
+      "expected_sql": "SELECT id, name, price FROM products",
+      "predicted_sql": "SELECT * FROM products"
+    },
+    {
+      "prompt": "Count orders per status",
+      "expected_sql": "SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status",
+      "predicted_sql": "SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status"
+    }
+  ]
+}

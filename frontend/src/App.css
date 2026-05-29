@@ -19,7 +19,8 @@ header h1 {
 .history,
 .sql-preview,
 .table-area,
-.chart-area {
+.chart-area,
+.tables-panel {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -52,13 +53,46 @@ header h1 {
   gap: 0.4rem;
 }
 
-.history button {
-  width: 100%;
+.history button,
+.table-links button,
+.table-filters button {
   text-align: left;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
+}
+
+.history button,
+.table-links button {
+  width: 100%;
+}
+
+.table-links {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  margin-bottom: 0.8rem;
+}
+
+.table-links .active {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
+.table-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+  margin-bottom: 0.8rem;
+}
+
+.table-filters input,
+.table-filters select,
+.chart-controls select {
+  width: 100%;
+  margin-top: 0.35rem;
 }
 
 .error {
@@ -77,6 +111,19 @@ header h1 {
   gap: 1rem;
 }
 
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.cards p {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin: 0;
+}
+
 .sql-preview pre {
   overflow-x: auto;
   white-space: pre-wrap;
@@ -86,9 +133,19 @@ header h1 {
   border-radius: 8px;
 }
 
+.chart-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
 .metric {
   font-size: 2rem;
   font-weight: 700;
+}
+
+.table-area {
+  overflow-x: auto;
 }
 
 .table-area table {
@@ -106,5 +163,9 @@ header h1 {
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .chart-controls {
+    flex-direction: column;
   }
 }

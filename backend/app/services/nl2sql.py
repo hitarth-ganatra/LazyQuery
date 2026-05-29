@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from json import JSONDecodeError
 
+import httpx
 from app.services.groq_client import GroqClient
 
 logger = logging.getLogger(__name__)
@@ -63,7 +65,7 @@ class NlToSqlService:
             if not sql:
                 raise ValueError("LLM returned empty SQL")
             return sql, intent, warnings
-        except Exception as exc:  # noqa: BLE001
+        except (JSONDecodeError, KeyError, TypeError, ValueError, RuntimeError, httpx.HTTPError) as exc:
             logger.warning("Groq generation failed, using fallback", exc_info=exc)
             warnings.append("Groq generation failed; fallback SQL used")
             return self._fallback_sql(schema, limit), intent, warnings

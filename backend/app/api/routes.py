@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.models import QueryRequest, QueryResponse
@@ -55,8 +58,10 @@ async def query_data(
 
     try:
         columns, rows = await db.execute_readonly(safe_sql)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=f"Query execution failed: {exc}") from exc
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Query execution timed out") from exc
+    except asyncpg.PostgresError as exc:
+        raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
 
     chart = recommend_chart(rows, columns)
     return QueryResponse(

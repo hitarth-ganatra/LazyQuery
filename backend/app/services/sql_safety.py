@@ -40,7 +40,7 @@ class SqlSafetyValidator:
 
         lowered = normalized.lower()
         for keyword in DISALLOWED_KEYWORDS:
-            if re.search(rf"\\b{keyword}\\b", lowered):
+            if re.search(rf"\b{keyword}\b", lowered):
                 raise SqlSafetyError(f"Disallowed SQL keyword detected: {keyword}")
 
         parsed = sqlglot.parse_one(normalized, read="postgres")
